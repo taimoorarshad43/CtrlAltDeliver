@@ -30,7 +30,7 @@ def getproductdescription(image_data, prompt=None):
     message_data = prompt
     
     if not prompt:
-        message_data = "Give me a list of tags for this image. Only return the tags, no other text."
+        message_data = "Analyze this food image and list all the ingredients you can identify. Return only the ingredient names, separated by commas."
 
     """Function that takes base64 utf-8 image data and returns an image description from Mistral's AI"""
 
