@@ -166,6 +166,26 @@
             border: 1px solid #dee2e6;
             font-size: 1.1em;
             line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .playlist {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            font-size: 1.1em;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .playlist-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .error {
@@ -188,8 +208,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🍽️ Food Ingredient Analyzer</h1>
-        <p class="subtitle">Upload a food image or analyze a random food photo to identify ingredients</p>
+        <h1>🍽️ Food Ingredient & Playlist Analyzer</h1>
+        <p class="subtitle">Upload a food image or analyze a random food photo to identify ingredients and get a matching playlist</p>
         
         <div class="upload-section">
             <div class="file-input-wrapper">
@@ -210,12 +230,18 @@
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Analyzing your food image with AI...</p>
+            <p>Analyzing your food image and generating a playlist...</p>
         </div>
         
         <div class="results" id="results">
             <h3>📋 Identified Ingredients:</h3>
             <div class="ingredients" id="ingredients"></div>
+            
+            <div class="playlist-title">
+                🎵 Recommended Playlist:
+            </div>
+            <div class="playlist" id="playlist"></div>
+            
             <div class="source-info" id="sourceInfo"></div>
         </div>
         
@@ -230,6 +256,7 @@
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
         const ingredients = document.getElementById('ingredients');
+        const playlist = document.getElementById('playlist');
         const sourceInfo = document.getElementById('sourceInfo');
         const error = document.getElementById('error');
 
@@ -265,7 +292,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.source);
+                    showResults(data.ingredients, data.playlist, data.source);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the image.');
                 }
@@ -288,7 +315,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.source);
+                    showResults(data.ingredients, data.playlist, data.source);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the random image.');
                 }
@@ -311,8 +338,9 @@
             randomButton.disabled = false;
         }
 
-        function showResults(ingredientsText, source) {
+        function showResults(ingredientsText, playlistText, source) {
             ingredients.textContent = ingredientsText;
+            playlist.textContent = playlistText || 'No playlist available';
             sourceInfo.textContent = `Source: ${source === 'uploaded_image' ? 'Your uploaded image' : 'Random food image from API'}`;
             results.style.display = 'block';
         }

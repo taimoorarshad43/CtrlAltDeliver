@@ -3,7 +3,9 @@ import os
 import base64
 from werkzeug.utils import secure_filename
 import requests
-from mistraldescription import getproductdescription
+# from mistraldescription import getproductdescription
+from ingredients_playlist import getproductdescription
+from ingredients_playlist import get_playlist_from_ingredients
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -78,12 +80,15 @@ def upload_file():
                 image_base64, 
                 "Analyze this food image and list all the ingredients you can identify. Return only the ingredient names, separated by commas."
             )
+
+            playlist = get_playlist_from_ingredients(ingredients)
             
             # Clean up uploaded file
             os.remove(filepath)
             
             return jsonify({
                 'success': True,
+                'playlist': playlist,
                 'ingredients': ingredients,
                 'source': 'uploaded_image'
             })
@@ -109,9 +114,13 @@ def analyze_random_food():
             "Analyze this food image and list all the ingredients you can identify. Return only the ingredient names, separated by commas."
         )
         
+        # Get playlist based on ingredients
+        playlist = get_playlist_from_ingredients(ingredients)
+        
         return jsonify({
             'success': True,
             'ingredients': ingredients,
+            'playlist': playlist,
             'source': 'api_image'
         })
         

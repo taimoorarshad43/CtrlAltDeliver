@@ -103,10 +103,10 @@ def get_playlist_from_ingredients(ingredients: str):
     playlist = resp.choices[0].message.content
     return playlist
 
-# Example use:
-ingredients_output = "tomato, basil, garlic, olive oil, parmesan"
-#playlist = get_playlist_from_ingredients(ingredients_output)
-ingredients = getproductdescription(getimages())
-playlist = get_playlist_from_ingredients(ingredients)
-print("\nRecommended Playlist:\n")
-print(playlist)
+# # Example use:
+# ingredients_output = "tomato, basil, garlic, olive oil, parmesan"
+# #playlist = get_playlist_from_ingredients(ingredients_output)
+# ingredients = getproductdescription(getimages())
+# playlist = get_playlist_from_ingredients(ingredients)
+# print("\nRecommended Playlist:\n")
+# print(playlist)
