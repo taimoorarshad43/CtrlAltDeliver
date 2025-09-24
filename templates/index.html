@@ -187,6 +187,84 @@
             align-items: center;
             gap: 10px;
         }
+
+        .spotify-player {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #1db954;
+            border-radius: 10px;
+            color: white;
+        }
+
+        .current-song {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .current-song h4 {
+            font-size: 1.4em;
+            margin-bottom: 5px;
+        }
+
+        .current-song p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .player-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .spotify-button {
+            background: white;
+            color: #1db954;
+        }
+
+        .spotify-button:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+        }
+
+        .nav-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .nav-button:hover {
+            background: white;
+            color: #1db954;
+            transform: translateY(-2px);
+        }
+
+        .nav-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .playlist-info {
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
         
         .error {
             display: none;
@@ -244,6 +322,30 @@
             
             <div class="source-info" id="sourceInfo"></div>
         </div>
+
+        <!-- Spotify Player Section -->
+        <div class="spotify-player" id="spotifyPlayer">
+            <div class="current-song">
+                <h4 id="currentSongTitle">No song selected</h4>
+                <p id="currentSongArtist">Select a song to start playing</p>
+            </div>
+            
+            <div class="player-controls">
+                <button id="prevButton" class="player-button nav-button" disabled>
+                    ⏮️ Previous
+                </button>
+                <button id="spotifyButton" class="player-button spotify-button" disabled>
+                    🎵 Open in Spotify
+                </button>
+                <button id="nextButton" class="player-button nav-button" disabled>
+                    Next ⏭️
+                </button>
+            </div>
+            
+            <div class="playlist-info" id="playlistInfo">
+                Song 1 of 8
+            </div>
+        </div>
         
         <div class="error" id="error"></div>
     </div>
@@ -259,6 +361,19 @@
         const playlist = document.getElementById('playlist');
         const sourceInfo = document.getElementById('sourceInfo');
         const error = document.getElementById('error');
+        
+        // Spotify player elements
+        const spotifyPlayer = document.getElementById('spotifyPlayer');
+        const currentSongTitle = document.getElementById('currentSongTitle');
+        const currentSongArtist = document.getElementById('currentSongArtist');
+        const prevButton = document.getElementById('prevButton');
+        const spotifyButton = document.getElementById('spotifyButton');
+        const nextButton = document.getElementById('nextButton');
+        const playlistInfo = document.getElementById('playlistInfo');
+        
+        // Playlist state
+        let currentPlaylist = [];
+        let currentSongIndex = 0;
 
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -292,7 +407,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.playlist, data.source);
+                    showResults(data.ingredients, data.playlist, data.source, data.parsed_playlist);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the image.');
                 }
@@ -315,7 +430,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.playlist, data.source);
+                    showResults(data.ingredients, data.playlist, data.source, data.parsed_playlist);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the random image.');
                 }
@@ -338,11 +453,19 @@
             randomButton.disabled = false;
         }
 
-        function showResults(ingredientsText, playlistText, source) {
+        function showResults(ingredientsText, playlistText, source, parsedPlaylist = null) {
             ingredients.textContent = ingredientsText;
             playlist.textContent = playlistText || 'No playlist available';
             sourceInfo.textContent = `Source: ${source === 'uploaded_image' ? 'Your uploaded image' : 'Random food image from API'}`;
             results.style.display = 'block';
+            
+            // Initialize Spotify player if we have a parsed playlist
+            if (parsedPlaylist && parsedPlaylist.length > 0) {
+                currentPlaylist = parsedPlaylist;
+                currentSongIndex = 0;
+                initializeSpotifyPlayer();
+                spotifyPlayer.style.display = 'block';
+            }
         }
 
         function hideResults() {
@@ -357,6 +480,67 @@
         function hideError() {
             error.style.display = 'none';
         }
+
+        // Spotify Player Functions
+        function initializeSpotifyPlayer() {
+            if (currentPlaylist.length === 0) return;
+            
+            updateCurrentSong();
+            updateNavigationButtons();
+        }
+
+        function updateCurrentSong() {
+            if (currentPlaylist.length === 0) return;
+            
+            const song = currentPlaylist[currentSongIndex];
+            currentSongTitle.textContent = song.song;
+            currentSongArtist.textContent = song.artist;
+            playlistInfo.textContent = `Song ${currentSongIndex + 1} of ${currentPlaylist.length}`;
+            
+            // Enable Spotify button
+            spotifyButton.disabled = false;
+        }
+
+        function updateNavigationButtons() {
+            prevButton.disabled = currentSongIndex === 0;
+            nextButton.disabled = currentSongIndex >= currentPlaylist.length - 1;
+        }
+
+        function navigatePlaylist(direction) {
+            if (currentPlaylist.length === 0) return;
+            
+            const newIndex = direction === 'next' ? currentSongIndex + 1 : currentSongIndex - 1;
+            
+            if (newIndex >= 0 && newIndex < currentPlaylist.length) {
+                currentSongIndex = newIndex;
+                updateCurrentSong();
+                updateNavigationButtons();
+            }
+        }
+
+        function openCurrentSongInSpotify() {
+            if (currentPlaylist.length === 0) return;
+            
+            const song = currentPlaylist[currentSongIndex];
+            
+            // Open Spotify URL in new tab
+            window.open(song.spotify_url, '_blank');
+            
+            // Show a brief confirmation
+            const originalText = spotifyButton.textContent;
+            spotifyButton.textContent = '✅ Opened!';
+            spotifyButton.style.background = '#28a745';
+            
+            setTimeout(() => {
+                spotifyButton.textContent = originalText;
+                spotifyButton.style.background = 'white';
+            }, 2000);
+        }
+
+        // Event Listeners for Spotify Player
+        prevButton.addEventListener('click', () => navigatePlaylist('previous'));
+        nextButton.addEventListener('click', () => navigatePlaylist('next'));
+        spotifyButton.addEventListener('click', openCurrentSongInSpotify);
 
         // Drag and drop functionality
         fileInputButton.addEventListener('dragover', function(e) {

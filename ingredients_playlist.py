@@ -95,7 +95,7 @@ def get_playlist_from_ingredients(ingredients: str):
     ]
 
     resp = client.chat.complete(
-        model="mistral-large-latest",   # text model
+        model="mistral-small-latest",   # text model
         messages=messages,
         temperature=0.6
     )
