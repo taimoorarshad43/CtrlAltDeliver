@@ -7,9 +7,11 @@ Designed to be used as an alternative to Mistral API calls for food classificati
 """
 
 import os
+import base64
 import numpy as np
+from io import BytesIO
+from PIL import Image
 import tensorflow as tf
-import tensorflow_datasets as tfds
 from tensorflow import keras
 from tensorflow.keras.preprocessing.image import load_img
 from tensorflow.keras.applications.xception import preprocess_input
@@ -35,21 +37,62 @@ class Food101Predictor:
         # Load the model
         self.model = keras.models.load_model(self.model_path)
         
-        # Load class names from tensorflow_datasets
-        try:
-            _, info = tfds.load('food101', with_info=True, as_supervised=True)
-            self.class_names = info.features['label'].names
-            print(f"Loaded {len(self.class_names)} food classes")
-        except Exception as e:
-            print(f"Warning: Could not load class names: {e}")
-            self.class_names = [f"class_{i}" for i in range(101)]
-        
+        # Load class names - use hardcoded list to avoid downloading dataset
+        self.class_names = self._get_food101_class_names()
+        print(f"Loaded {len(self.class_names)} food classes")
         print("Model loaded successfully!")
+    
+    def _get_food101_class_names(self):
+        """Get Food-101 class names without downloading the dataset"""
+        return [
+            'apple_pie', 'baby_back_ribs', 'baklava', 'beef_carpaccio', 'beef_tartare',
+            'beet_salad', 'beignets', 'bibimbap', 'bread_pudding', 'breakfast_burrito',
+            'bruschetta', 'caesar_salad', 'cannoli', 'caprese_salad', 'carrot_cake',
+            'ceviche', 'cheese_plate', 'cheesecake', 'chicken_curry', 'chicken_quesadilla',
+            'chicken_wings', 'chocolate_cake', 'chocolate_mousse', 'churros', 'clam_chowder',
+            'club_sandwich', 'crab_cakes', 'creme_brulee', 'croque_madame', 'cup_cakes',
+            'deviled_eggs', 'donuts', 'dumplings', 'edamame', 'eggs_benedict',
+            'escargots', 'falafel', 'filet_mignon', 'fish_and_chips', 'foie_gras',
+            'french_fries', 'french_onion_soup', 'french_toast', 'fried_calamari', 'fried_rice',
+            'frozen_yogurt', 'garlic_bread', 'gnocchi', 'greek_salad', 'grilled_cheese_sandwich',
+            'grilled_salmon', 'guacamole', 'gyoza', 'hamburger', 'hot_and_sour_soup',
+            'hot_dog', 'huevos_rancheros', 'hummus', 'ice_cream', 'lasagna',
+            'lobster_bisque', 'lobster_roll_sandwich', 'macaroni_and_cheese', 'macarons', 'miso_soup',
+            'mussels', 'nachos', 'omelette', 'onion_rings', 'oysters',
+            'pad_thai', 'paella', 'pancakes', 'panna_cotta', 'peking_duck',
+            'pho', 'pizza', 'pork_chop', 'poutine', 'prime_rib',
+            'pulled_pork_sandwich', 'ramen', 'ravioli', 'red_velvet_cake', 'risotto',
+            'samosa', 'sashimi', 'scallops', 'seaweed_salad', 'shrimp_and_grits',
+            'spaghetti_bolognese', 'spaghetti_carbonara', 'spring_rolls', 'steak', 'strawberry_shortcake',
+            'sushi', 'tacos', 'takoyaki', 'tiramisu', 'tuna_tartare', 'waffles'
+        ]
     
     def preprocess_image(self, image_path):
         """Preprocess an image for prediction"""
         # Load and resize image
         img = load_img(image_path, target_size=self.image_size)
+        
+        # Convert to array and add batch dimension
+        img_array = np.array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        # Apply Xception preprocessing
+        img_array = preprocess_input(img_array)
+        
+        return img_array
+    
+    def preprocess_image_from_base64(self, image_base64):
+        """Preprocess base64 image for prediction (for Flask app)"""
+        # Decode base64 to image
+        image_data = base64.b64decode(image_base64)
+        img = Image.open(BytesIO(image_data))
+        
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Resize to model input size
+        img = img.resize(self.image_size)
         
         # Convert to array and add batch dimension
         img_array = np.array(img)
@@ -141,6 +184,57 @@ class Food101Predictor:
                 })
         
         return results
+    
+    def predict_food_from_base64(self, image_base64, top_k=3):
+        """
+        Predict food from base64 image (for Flask app integration)
+        Returns just the food name as a string
+        """
+        if self.model is None:
+            raise ValueError("Model not loaded")
+        
+        # Preprocess image from base64
+        img_array = self.preprocess_image_from_base64(image_base64)
+        
+        # Make prediction
+        predictions = self.model.predict(img_array, verbose=0)
+        
+        # Get top prediction
+        top_idx = np.argmax(predictions[0])
+        confidence = float(predictions[0][top_idx])
+        food_name = self.class_names[top_idx]
+        
+        # Clean up food name (replace underscores with spaces)
+        food_name_clean = food_name.replace('_', ' ')
+        
+        print(f"Detected: {food_name_clean} ({confidence:.2%} confidence)")
+        
+        return food_name_clean
+
+
+# Global predictor instance (loaded once)
+_predictor_instance = None
+
+def get_predictor():
+    """Get or create global predictor instance"""
+    global _predictor_instance
+    if _predictor_instance is None:
+        _predictor_instance = Food101Predictor()
+    return _predictor_instance
+
+
+def detect_food_from_base64(image_base64):
+    """
+    Simple function for app.py to call
+    Takes base64 image, returns food name as string
+    """
+    try:
+        predictor = get_predictor()
+        food_name = predictor.predict_food_from_base64(image_base64)
+        return food_name
+    except Exception as e:
+        print(f"Error detecting food: {e}")
+        return f"unknown food"
 
 
 def test_predictor():

@@ -159,6 +159,24 @@
             margin-bottom: 15px;
         }
         
+        .food-detected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .food-detected-label {
+            font-size: 0.8em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
         .ingredients {
             background: white;
             padding: 15px;
@@ -312,6 +330,11 @@
         </div>
         
         <div class="results" id="results">
+            <div class="food-detected" id="foodDetected">
+                <div class="food-detected-label">🍽️ Detected Food:</div>
+                <div id="foodName">-</div>
+            </div>
+            
             <h3>📋 Identified Ingredients:</h3>
             <div class="ingredients" id="ingredients"></div>
             
@@ -357,6 +380,7 @@
         const randomButton = document.getElementById('randomButton');
         const loading = document.getElementById('loading');
         const results = document.getElementById('results');
+        const foodName = document.getElementById('foodName');
         const ingredients = document.getElementById('ingredients');
         const playlist = document.getElementById('playlist');
         const sourceInfo = document.getElementById('sourceInfo');
@@ -407,7 +431,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.playlist, data.source, data.parsed_playlist);
+                    showResults(data.food_name, data.ingredients, data.playlist, data.source, data.parsed_playlist);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the image.');
                 }
@@ -430,7 +454,7 @@
             .then(data => {
                 hideLoading();
                 if (data.success) {
-                    showResults(data.ingredients, data.playlist, data.source, data.parsed_playlist);
+                    showResults(data.food_name, data.ingredients, data.playlist, data.source, data.parsed_playlist);
                 } else {
                     showError(data.error || 'An error occurred while analyzing the random image.');
                 }
@@ -453,7 +477,9 @@
             randomButton.disabled = false;
         }
 
-        function showResults(ingredientsText, playlistText, source, parsedPlaylist = null) {
+        function showResults(foodNameText, ingredientsText, playlistText, source, parsedPlaylist = null) {
+            // Display detected food name with proper capitalization
+            foodName.textContent = foodNameText ? foodNameText.charAt(0).toUpperCase() + foodNameText.slice(1) : 'Unknown Food';
             ingredients.textContent = ingredientsText;
             playlist.textContent = playlistText || 'No playlist available';
             sourceInfo.textContent = `Source: ${source === 'uploaded_image' ? 'Your uploaded image' : 'Random food image from API'}`;
