@@ -4,6 +4,11 @@ import base64
 from werkzeug.utils import secure_filename
 import requests
 import json
+
+# Import Food-101 model for food detection
+from predict_food101 import detect_food_from_base64
+
+# Import Mistral/Gemini for ingredient extraction
 # from mistraldescription import getproductdescription
 from ingredients_playlist import getproductdescription
 from ingredients_playlist import get_playlist_from_ingredients
@@ -77,10 +82,13 @@ def upload_file():
                 img_data = f.read()
             image_base64 = base64.b64encode(img_data).decode('utf-8')
             
-            # Get ingredients using Mistral AI
+            # Step 1: Detect food type using Food-101 model
+            food_name = detect_food_from_base64(image_base64)
+            
+            # Step 2: Get ingredients using Mistral/Gemini based on the detected food
             ingredients = getproductdescription(
                 image_base64, 
-                "Analyze this food image and list all the ingredients you can identify. Return only the ingredient names, separated by commas."
+                f"This is {food_name}. List the typical ingredients found in {food_name}. Return only the ingredient names, separated by commas."
             )
 
             playlist = get_playlist_from_ingredients(ingredients)
@@ -93,6 +101,7 @@ def upload_file():
             
             return jsonify({
                 'success': True,
+                'food_name': food_name,  # Add detected food name
                 'playlist': playlist,
                 'parsed_playlist': parsed_playlist,
                 'ingredients': ingredients,
@@ -114,10 +123,13 @@ def analyze_random_food():
         # Get random food image from API
         image_base64 = get_food_image_from_api()
         
-        # Get ingredients using Mistral AI
+        # Step 1: Detect food type using Food-101 model
+        food_name = detect_food_from_base64(image_base64)
+        
+        # Step 2: Get ingredients using Mistral/Gemini based on the detected food
         ingredients = getproductdescription(
             image_base64, 
-            "Analyze this food image and list all the ingredients you can identify. Return only the ingredient names, separated by commas."
+            f"This is {food_name}. List the typical ingredients found in {food_name}. Return only the ingredient names, separated by commas."
         )
         
         # Get playlist based on ingredients
@@ -128,6 +140,7 @@ def analyze_random_food():
         
         return jsonify({
             'success': True,
+            'food_name': food_name,  # Add detected food name
             'ingredients': ingredients,
             'playlist': playlist,
             'parsed_playlist': parsed_playlist,
