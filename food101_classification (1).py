@@ -37,6 +37,7 @@ class Food101Classifier:
         self.dataset_info = None
         self.gpu_available = False
         self.memory_info = None
+        self.best_model_path = 'food101_best_model.keras'
         
         # Configure GPU and memory
         self._configure_gpu()
@@ -174,7 +175,7 @@ class Food101Classifier:
             print(f"Available splits: {list(dataset.keys())}")
             
             # Get train and validation datasets (Food-101 uses 'validation' not 'test')
-            train_dataset = dataset['train']
+            raw_train_dataset = dataset['train']
             test_dataset = dataset['validation']  # Food-101 uses 'validation' split
             
         except KeyError as e:
@@ -183,19 +184,30 @@ class Food101Classifier:
             raise
         
         # Limit dataset size for testing if specified
+        total_train_examples = info.splits['train'].num_examples
         if limit_samples is not None:
             print(f"[TEST MODE] Limiting dataset to {limit_samples} training samples")
-            train_dataset = train_dataset.take(limit_samples)
+            total_train_examples = min(limit_samples, total_train_examples)
+            raw_train_dataset = raw_train_dataset.take(limit_samples)
             test_dataset = test_dataset.take(min(limit_samples // 10, 100))  # Smaller test set
         
-        # Split training data for validation
-        train_size = int((1 - validation_split) * len(train_dataset))
-        val_size = len(train_dataset) - train_size
+        raw_train_dataset = raw_train_dataset.shuffle(
+            buffer_size=total_train_examples,
+            seed=42,
+            reshuffle_each_iteration=False
+        )
         
-        # Store original dataset before splitting
-        original_train = train_dataset
-        train_dataset = original_train.take(train_size)
-        val_dataset = original_train.skip(train_size).take(val_size)
+        train_size = int((1 - validation_split) * total_train_examples)
+        val_size = total_train_examples - train_size
+        
+        train_dataset = raw_train_dataset.take(train_size)
+        val_dataset = raw_train_dataset.skip(train_size).take(val_size)
+        
+        train_dataset = train_dataset.shuffle(
+            buffer_size=max(1, min(10_000, train_size)),
+            seed=42,
+            reshuffle_each_iteration=True
+        )
         
         # Preprocess function with data augmentation for training
         def preprocess_image(image, label, training=True):
@@ -238,8 +250,10 @@ class Food101Classifier:
                        .prefetch(2))
         
         # Get dataset sizes without converting to list (which causes memory issues)
-        train_size = len(train_dataset)
-        test_size = len(test_dataset)
+        # Dataset sizes from metadata/logic above
+        test_size = info.splits['validation'].num_examples
+        if limit_samples is not None:
+            test_size = min(limit_samples // 10, 100)
         print(f"Training samples: {train_size}")
         print(f"Validation samples: {val_size}")
         print(f"Test samples: {test_size}")
@@ -309,7 +323,7 @@ class Food101Classifier:
         
         # Build custom model with better architecture
         inputs = keras.Input(shape=(*self.image_size, 3))
-        base = base_model(inputs, training=False)
+        base = base_model(inputs)
         
         # Global Average Pooling
         vectors = keras.layers.GlobalAveragePooling2D()(base)
@@ -339,7 +353,7 @@ class Food101Classifier:
         """Compile the model with optimizer and loss function"""
         # Use AdamW optimizer (better than Adam)
         optimizer = keras.optimizers.AdamW(learning_rate=learning_rate, weight_decay=0.01)
-        loss = keras.losses.SparseCategoricalCrossentropy()
+        loss = keras.losses.SparseCategoricalCrossentropy(label_smoothing=0.1)
         
         self.model.compile(
             optimizer=optimizer,
@@ -379,8 +393,6 @@ class Food101Classifier:
                 # Memory cleanup every few epochs
                 if (epoch + 1) % 3 == 0:
                     gc.collect()
-                    if self.gpu_available:
-                        tf.keras.backend.clear_session()
         
         progress_callback = ProgressCallback(epochs)
         progress_callback.gpu_available = self.gpu_available
@@ -394,6 +406,15 @@ class Food101Classifier:
                 verbose=1
             )
             callbacks.append(early_stopping)
+        
+        checkpoint = keras.callbacks.ModelCheckpoint(
+            filepath=self.best_model_path,
+            monitor='val_accuracy',
+            mode='max',
+            save_best_only=True,
+            verbose=1
+        )
+        callbacks.append(checkpoint)
         
         # Reduce learning rate on plateau (aggressive for better convergence)
         reduce_lr = keras.callbacks.ReduceLROnPlateau(
@@ -450,7 +471,7 @@ class Food101Classifier:
         # Recompile with lower learning rate
         self.model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-            loss=keras.losses.SparseCategoricalCrossentropy(),
+            loss=keras.losses.SparseCategoricalCrossentropy(label_smoothing=0.1),
             metrics=['accuracy', 'sparse_top_k_categorical_accuracy']
         )
         
@@ -475,13 +496,18 @@ class Food101Classifier:
                     if 'val_loss' in logs:
                         print(f"   Val Loss: {logs.get('val_loss', 0):.4f} - Val Accuracy: {logs.get('val_accuracy', 0):.4f}")
                 
-                # Memory cleanup
                 gc.collect()
-                if self.gpu_available:
-                    tf.keras.backend.clear_session()
         
         fine_tune_callback = FineTuneProgressCallback(epochs)
         fine_tune_callback.gpu_available = self.gpu_available
+        
+        checkpoint = keras.callbacks.ModelCheckpoint(
+            filepath=self.best_model_path,
+            monitor='val_accuracy',
+            mode='max',
+            save_best_only=True,
+            verbose=1
+        )
         
         # Continue training
         fine_tune_history = self.model.fit(
@@ -489,7 +515,7 @@ class Food101Classifier:
             epochs=epochs,
             validation_data=self.val_ds,
             verbose=0,
-            callbacks=[fine_tune_callback]
+            callbacks=[fine_tune_callback, checkpoint]
         )
         
         print("\n" + "="*60)
