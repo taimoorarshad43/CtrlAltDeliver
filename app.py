@@ -61,6 +61,11 @@ def get_food_image_from_api():
 def index():
     return render_template('index.html')
 
+@app.route('/demo')
+def demo():
+    """Demo page showcasing project details and sample output"""
+    return render_template('demo.html')
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
