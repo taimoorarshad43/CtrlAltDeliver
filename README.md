@@ -12,103 +12,101 @@ A web application that uses Mistral AI's Pixtral model to analyze food images an
 
 ## 🚀 Quick Start
 
-### 1. Environment Setup
+The project now runs as two services:
 
-Create a Python virtual environment to isolate the project dependencies:
+- **Flask backend** – JSON API that talks to Mistral and Spotify helpers.
+- **React frontend** – Vite-powered UI that consumes the backend API.
+
+### 1. Prerequisites
+
+- Python 3.10+  
+- Node.js 18+ (or any recent LTS) & npm
+
+### 2. Backend Setup
 
 ```bash
-# Create virtual environment
+# Create & activate virtual environment
 python3 -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
 
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-```
-
-### 2. Install Dependencies
-
-Install the required Python packages:
-
-```bash
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env              # if you have an example file
 ```
 
-### 3. Mistral AI API Setup
+Edit `.env` in the project root and provide at least:
 
-1. Go to [Mistral AI Console](https://console.mistral.ai/) and create an account
-2. Generate an API key from your dashboard
-3. Create a `.env` file in the project root directory:
+```
+MISTRAL_API_KEY=your_mistral_key
+
+```
+
+Run the API:
 
 ```bash
-# Create .env file
-touch .env
+flask run
 ```
 
-4. Add your Mistral API key to the `.env` file:
+By default the backend listens on `http://0.0.0.0:5000` and exposes endpoints under `/api/*`.
 
-```
-MISTRAL_API_KEY=your_actual_api_key_here
-```
-
-**Important:** Replace `your_actual_api_key_here` with your real API key from Mistral AI.
-
-### 4. Running the Application
-
-Start the Flask web server:
+### 3. Frontend Setup
 
 ```bash
-python3 app.py
+cd frontend
+npm install
 ```
 
-Then open your browser and navigate to: `http://localhost:5000`
+Optionally create `frontend/.env.local` to override the backend URL (defaults to `http://localhost:5000`):
+
+```
+VITE_API_BASE_URL=http://localhost:5000
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Vite will print a local URL (typically `http://localhost:5173`). Open it in the browser; the UI will proxy API calls to the Flask backend.
+
+### 4. Production Builds (optional)
+
+- **Backend**: deploy `app.py` with your preferred WSGI server (Gunicorn, uvicorn, etc.).
+- **Frontend**: `npm run build` creates static assets in `frontend/dist`. Serve them via your hosting provider or a CDN; ensure `VITE_API_BASE_URL` points at the deployed backend.
 
 ## 📁 Project Structure
 
 ```
 CtrlAltDeliver/
-├── app.py                          # Main Flask web application
-├── mistraldescription.py           # Mistral AI integration module
-├── requirements.txt                # Python dependencies
-├── .env                           # Environment variables (create this)
-├── .env.example                   # Environment variables template
-├── templates/                     # HTML templates directory
-│   └── index.html                 # Main web interface
-├── uploads/                       # Temporary file upload directory (auto-created)
-├── venv/                          # Virtual environment (created during setup)
-└── README.md                      # This file
+├── app.py                       # Flask API server
+├── ingredients_playlist.py      # Mistral helpers for dish + playlist generation
+├── spotify_playlist.py          # Playlist parsing utilities
+├── requirements.txt             # Python dependencies
+├── frontend/                    # React + Vite UI
+│   ├── package.json
+│   └── src/...
+├── uploads/                     # Temporary file upload directory (auto-created)
+└── README.md                    # This file
 ```
 
 ### File Descriptions
 
-- **`app.py`**: The main Flask web application that handles:
-  - File upload endpoints (`/upload`)
-  - Random food image analysis (`/analyze_random`)
-  - Web interface serving
-  - Error handling and file management
+- **`app.py`** – Flask API that exposes:
+  - `POST /api/analyze-image` for uploaded photos
+  - `POST /api/analyze-random` for random imagery
+  - `POST /api/playlist/navigation` helpers
+  - `POST /api/open-spotify` link generation
 
-- **`mistraldescription.py`**: Core AI integration module containing:
-  - `getproductdescription()`: Function to analyze images with Mistral AI
-  - `getimages()`: Function to fetch random images (legacy)
-  - Mistral AI client configuration
+- **`ingredients_playlist.py`** – Mistral integration layer:
+  - `analyze_food_image()` -> dish + ingredient JSON via Pixtral
+  - `get_playlist_from_ingredients()` -> curated playlist text
 
-- **`templates/index.html`**: Modern web interface featuring:
-  - Drag-and-drop file upload
-  - Two analysis modes (upload vs random)
-  - Loading states and error handling
-  - Responsive design
+- **`frontend/`** – React UI that calls the backend API and renders analysis results.
 
-- **`requirements.txt`**: Python package dependencies including:
-  - Flask (web framework)
-  - Mistral AI SDK
-  - Requests (HTTP client)
-  - Other supporting libraries
-
-- **`.env`**: Environment variables file (create this):
-  - `MISTRAL_API_KEY`: Your Mistral AI API key
-
-- **`uploads/`**: Temporary directory for uploaded files (auto-created and cleaned up)
+- **`uploads/`** – Temporary folder for incoming files (cleared after processing).
 
 ## 🎯 How It Works
 
@@ -157,9 +155,9 @@ python3 mistraldescription.py
 ## 📝 Usage Examples
 
 ### Web Interface
-1. Open `http://localhost:5000`
-2. Upload a food image or click "Analyze Random Food Image"
-3. View the identified ingredients
+1. Run both backend (`python app.py`) and frontend (`npm run dev`).
+2. Open the Vite URL (e.g. `http://localhost:5173`).
+3. Upload a food image or trigger a random analysis to see ingredients, playlists, and cultural context.
 
 ### Direct API Usage
 ```python
