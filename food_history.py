@@ -1,145 +1,148 @@
-#!/usr/bin/env python3
-"""
-Food History CLI - Get historical and cultural information about any food dish.
-"""
-
-import argparse
-import sys
-import time
 from ollama import chat
 from pydantic import BaseModel
+import sys
+from typing import Dict, Optional
 
 
 class FoodInfo(BaseModel):
     food_history: str
     modern_culture: str
+    fun_facts: str
 
 
 # ReAct Prompting: First get the model to think and reason
-react_prompt = """
+REACT_PROMPT = """
 You are a food expert using ReAct (Reasoning + Acting) methodology.
 
 For the dish provided, follow these steps:
 
 **Thought 1:** What do I know about the origins and historical context of this dish?
-**Action 1:** Gather key historical facts (region of origin, time period, cultural significance, evolution)
+**Action 1:** Gather key historical facts (region of origin, time period, cultural significance, evolution, date of origin)
 
 **Thought 2:** How has this dish evolved and what is its significance in modern times?
 **Action 2:** Analyze current cultural impact, popularity, variations, and modern adaptations
 
-**Thought 3:** How can I best structure this information into two compelling paragraphs?
-**Action 3:** Create two well-crafted paragraphs (each ~100 words):
+**Thought 3:** What are some interesting, specific and lesser-known fun facts about this dish? 
+**Action 3:** Gather three fun facts which are interesting, surprising and trivia points about the dish.
+
+**Thought 4:** How can I best structure this information into three compelling paragraphs?
+**Action 4:** Create three well-crafted paragraphs (each ~100 words). Below is the structure:
+
 - Paragraph 1 (food_history): Focus on origins, traditional preparation, and historical journey
 - Paragraph 2 (modern_culture): Focus on contemporary significance, global spread, and cultural impact
+- Paragraph 3 (fun_facts): Focus on 3 surprising and fun facts about the dish. Please list each fun facts in bullets in separate lines. 
 
 Now, provide the final structured output with your analysis.
 """
 
 
-def get_food_info(food_name, model='qwen3:8b', verbose=False):
+def get_food_history(
+    food_name: str,
+    model: str = 'qwen3:8b',
+    verbose: bool = False
+) -> Dict[str, str]:
     """
-    Get food history and culture information for a given dish.
+    Get comprehensive food history information using ollama.
     
     Args:
-        food_name: Name of the food dish
-        model: Ollama model to use (default: qwen3:8b)
-        verbose: If True, show raw response from the model
-        
+        food_name (str): Name of the food item to get history for
+        model (str): Ollama model name to use. Default is 'qwen3:8b'.
+                    Recommended faster models: 'llama3.2:3b', 'qwen2.5:3b', 'phi3:mini'
+        verbose (bool): If True, print debug information. Default is False.
+    
     Returns:
-        FoodInfo object containing food_history and modern_culture
+        Dict[str, str]: Dictionary with keys 'food_history', 'modern_culture', and 'fun_facts'
+    
+    Raises:
+        ConnectionError: If unable to connect to ollama server
+        ValueError: If the model response cannot be parsed
+        Exception: For other errors during the API call
     """
-    print(f"⏳ Using model '{model}' - generating response (this may take 1-2 minutes)...", flush=True)
-    start_time = time.time()
+    if verbose:
+        print(f"🔍 Getting food history for: {food_name}")
+        print(f"📦 Using model: {model}")
     
-    response = chat(
-        model=model,
-        messages=[
-            {
-                'role': 'system',
-                'content': react_prompt
-            },
-            {
-                'role': 'user',
-                'content': f'Apply ReAct methodology to provide comprehensive information about: {food_name}',
-            },
-        ],
-        format=FoodInfo.model_json_schema(),
-    )
-    
-    elapsed_time = time.time() - start_time
-    print(f"✓ Response generated in {elapsed_time:.1f} seconds\n", flush=True)
+    # Generate the JSON schema
+    schema = FoodInfo.model_json_schema()
     
     if verbose:
-        print("=== RAW RESPONSE ===")
-        print(response.message.content)
-        print("\n" + "="*50 + "\n")
-    
-    return FoodInfo.model_validate_json(response.message.content)
-
-
-def main():
-    """Main CLI function."""
-    parser = argparse.ArgumentParser(
-        description='Get historical and cultural information about any food dish.',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s Biryani
-  %(prog)s "Pad Thai" --verbose
-  %(prog)s Pizza --json
-  %(prog)s Tacos --model llama3.2:1b
-  %(prog)s Sushi --model llama2:latest --verbose
-        """
-    )
-    
-    parser.add_argument(
-        'food_name',
-        type=str,
-        help='Name of the food dish to research'
-    )
-    
-    parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Show raw response from the model'
-    )
-    
-    parser.add_argument(
-        '-j', '--json',
-        action='store_true',
-        help='Output in JSON format'
-    )
-    
-    parser.add_argument(
-        '-m', '--model',
-        type=str,
-        default='qwen3:8b',
-        help='Ollama model to use (default: qwen3:8b)'
-    )
-    
-    args = parser.parse_args()
+        print(f"⏳ Sending request to ollama...")
     
     try:
-        print(f"Researching: {args.food_name}...\n")
-        food_info = get_food_info(args.food_name, model=args.model, verbose=args.verbose)
+        response = chat(
+            model=model,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': REACT_PROMPT
+                },
+                {
+                    'role': 'user',
+                    'content': f'Apply ReAct methodology to provide comprehensive information about: {food_name}',
+                },
+            ],
+            format=schema,
+        )
         
-        if args.json:
-            # Output as JSON
-            print(food_info.model_dump_json(indent=2))
-        else:
-            # Output formatted text
-            print(f"=== FOOD HISTORY: {args.food_name.upper()} ===")
-            print(food_info.food_history)
-            print(f"\n=== MODERN CULTURE ===")
-            print(food_info.modern_culture)
-            
-    except KeyboardInterrupt:
-        print("\n\nOperation cancelled by user.", file=sys.stderr)
-        sys.exit(1)
+        if verbose:
+            print(f"✓ Received response from ollama!")
+        
+        # Parse the response
+        food_info = FoodInfo.model_validate_json(response.message.content)
+        
+        # Return as dictionary for easy JSON serialization
+        return {
+            'food_history': food_info.food_history,
+            'modern_culture': food_info.modern_culture,
+            'fun_facts': food_info.fun_facts
+        }
+        
+    except ConnectionError as e:
+        error_msg = f"Connection error: Unable to connect to ollama server. Make sure ollama is running."
+        if verbose:
+            print(f"✗ {error_msg}")
+            print(f"   Details: {e}")
+        raise ConnectionError(error_msg) from e
+    
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        if isinstance(e, ValueError) or 'json' in str(e).lower() or 'parse' in str(e).lower():
+            error_msg = f"Failed to parse model response. The model might not have returned valid JSON."
+            if verbose:
+                print(f"✗ {error_msg}")
+                print(f"   Raw response: {getattr(response, 'message', {}).get('content', 'N/A')}")
+            raise ValueError(error_msg) from e
+        else:
+            error_msg = f"Error getting food history: {type(e).__name__}: {e}"
+            if verbose:
+                print(f"✗ {error_msg}")
+            raise Exception(error_msg) from e
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    food_name = 'Chicken Chowmein'
+    # model_name = 'qwen3:8b'
+    model_name = 'llama3.2:3b'
+    # model_name = 'phi3:mini'
+    # model_name = 'qwen2.5:3b'
+    
+    try:
+        result = get_food_history(food_name, model=model_name, verbose=True)
+        
+        print("\n" + "="*50)
+        print("=== FOOD HISTORY ===")
+        print("="*50)
+        print(result['food_history'])
+        print("\n" + "="*50)
+        print("=== MODERN CULTURE ===")
+        print("="*50)
+        print(result['modern_culture'])
+        print("\n" + "="*50)
+        print("=== FUN FACTS ===")
+        print("="*50)
+        print(result['fun_facts'])
+        print("="*50)
+        
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
         sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()

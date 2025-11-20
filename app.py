@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 
 from ingredients_playlist import analyze_food_image, get_playlist_from_ingredients, getproductdescription
 from spotify_playlist import get_next_song, get_previous_song, parse_playlist
+from food_history import get_food_history
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -213,6 +214,47 @@ def open_spotify():
 
     except Exception as exc:
         return jsonify({"error": f"Error opening Spotify: {exc}"}), 500
+
+
+@app.route("/api/food-history", methods=["POST"])
+def food_history():
+    """
+    Get food history, modern culture, and fun facts for a given food item.
+    
+    Request body:
+        {
+            "food_name": "Chicken Chowmein",
+            "model": "qwen3:8b"  # optional, defaults to qwen3:8b
+        }
+    """
+    try:
+        data = request.get_json(force=True)
+        food_name = data.get("food_name")
+        model = data.get("model", "qwen3:8b")  # Default to qwen3:8b
+        
+        if not food_name:
+            return jsonify({"error": "food_name is required"}), 400
+        
+        # Get food history information
+        history_data = get_food_history(food_name, model=model, verbose=False)
+        
+        return jsonify(
+            {
+                "success": True,
+                "food_name": food_name,
+                "model": model,
+                "food_history": history_data["food_history"],
+                "modern_culture": history_data["modern_culture"],
+                "fun_facts": history_data["fun_facts"],
+            }
+        )
+        
+    except ConnectionError as exc:
+        return jsonify({"error": f"Connection error: {exc}"}), 503
+    except ValueError as exc:
+        return jsonify({"error": f"Parsing error: {exc}"}), 500
+    except Exception as exc:
+        return jsonify({"error": f"Error getting food history: {exc}"}), 500
 
 
 if __name__ == "__main__":
