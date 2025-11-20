@@ -181,9 +181,14 @@ export function AnalysisResults({ result, themeColors, onTabChange }: AnalysisRe
               Cultural Story
             </h3>
             <p className="leading-relaxed" style={{ color: colors.secondary }}>
-              {funFact ?? 'Upload your meal to uncover cultural stories behind the dish.'}
+              {result.foodHistory?.food_history ?? funFact ?? 'Upload your meal to uncover cultural stories behind the dish.'}
             </p>
-            <p className="text-sm mt-2 italic" style={{ color: colors.accent }}>Click to explore more fun facts →</p>
+            {result.foodHistory && (
+              <p className="text-sm mt-2 italic" style={{ color: colors.accent }}>Click to explore more history and fun facts →</p>
+            )}
+            {!result.foodHistory && (
+              <p className="text-sm mt-2 italic" style={{ color: colors.accent }}>Click to explore more fun facts →</p>
+            )}
           </div>
         </div>
       </Card>

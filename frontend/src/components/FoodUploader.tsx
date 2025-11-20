@@ -22,6 +22,12 @@ export interface PlaylistTrack {
   vibe?: string;
 }
 
+export interface FoodHistoryData {
+  food_history: string;
+  modern_culture: string;
+  fun_facts: string;
+}
+
 export interface AnalysisResult {
   dishName: string;
   ingredients: string;
@@ -31,6 +37,7 @@ export interface AnalysisResult {
   imageUrl: string;
   playlistText?: string;
   source?: string;
+  foodHistory?: FoodHistoryData;
 }
 
 export function FoodUploader({ onImageAnalyzed, onColorsExtracted, themeColors, onReset }: FoodUploaderProps) {
@@ -100,6 +107,15 @@ export function FoodUploader({ onImageAnalyzed, onColorsExtracted, themeColors, 
         );
         const fallbackDish = normalizedDishKey ? foodDatabase[normalizedDishKey] : undefined;
 
+        // Extract food history from API response if available
+        const foodHistoryData: FoodHistoryData | undefined = payload.food_history
+          ? {
+              food_history: payload.food_history.food_history ?? '',
+              modern_culture: payload.food_history.modern_culture ?? '',
+              fun_facts: payload.food_history.fun_facts ?? '',
+            }
+          : undefined;
+
         onImageAnalyzed({
           dishName: fallbackDish?.name ?? (sanitizedDishName || 'Unknown'),
           ingredients: payload.ingredients ?? '',
@@ -109,6 +125,7 @@ export function FoodUploader({ onImageAnalyzed, onColorsExtracted, themeColors, 
           imageUrl: imageUrl,
           playlistText: payload.playlist,
           source: payload.source ?? 'uploaded_image',
+          foodHistory: foodHistoryData,
         });
       } catch (err) {
         console.error(err);

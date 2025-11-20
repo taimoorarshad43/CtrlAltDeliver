@@ -93,16 +93,30 @@ def analyze_image():
 
         parsed_playlist = parse_playlist(playlist)
 
-        return jsonify(
-            {
-                "success": True,
-                "food_name": food_name,
-                "ingredients": ingredients,
-                "playlist": playlist,
-                "parsed_playlist": parsed_playlist,
-                "source": "uploaded_image",
-            }
-        )
+        # Get food history if we have a valid food name
+        food_history_data = None
+        if food_name and food_name.lower() != "unknown":
+            try:
+                food_history_data = get_food_history(food_name, model="llama3.2:3b", verbose=False)
+            except Exception as food_history_error:
+                # Log error but don't fail the entire request
+                print(f"Warning: Could not fetch food history for '{food_name}': {food_history_error}")
+                food_history_data = None
+
+        response_data = {
+            "success": True,
+            "food_name": food_name,
+            "ingredients": ingredients,
+            "playlist": playlist,
+            "parsed_playlist": parsed_playlist,
+            "source": "uploaded_image",
+        }
+        
+        # Add food history if available
+        if food_history_data:
+            response_data["food_history"] = food_history_data
+
+        return jsonify(response_data)
 
     except Exception as exc:
         return jsonify({"error": f"Error processing image: {exc}"}), 500
@@ -110,39 +124,6 @@ def analyze_image():
     finally:
         if os.path.exists(filepath):
             os.remove(filepath)
-
-
-@app.route("/api/analyze-random", methods=["POST"])
-def analyze_random_food():
-    try:
-        image_base64 = get_food_image_from_api()
-
-        analysis = analyze_food_image(image_base64)
-        food_name = analysis.get("dish_name", "Unknown")
-        ingredients = analysis.get("ingredients", "")
-
-        if not ingredients:
-            ingredients = getproductdescription(
-                image_base64,
-                f"This is {food_name}. List the typical ingredients found in {food_name}. Return only the ingredient names, separated by commas.",
-            )
-
-        playlist = get_playlist_from_ingredients(ingredients)
-        parsed_playlist = parse_playlist(playlist)
-
-        return jsonify(
-            {
-                "success": True,
-                "food_name": food_name,
-                "ingredients": ingredients,
-                "playlist": playlist,
-                "parsed_playlist": parsed_playlist,
-                "source": "api_image",
-            }
-        )
-
-    except Exception as exc:
-        return jsonify({"error": f"Error analyzing random food image: {exc}"}), 500
 
 
 @app.route("/api/playlist/navigation", methods=["POST"])
@@ -216,6 +197,7 @@ def open_spotify():
         return jsonify({"error": f"Error opening Spotify: {exc}"}), 500
 
 
+# Remove? Not used?
 @app.route("/api/food-history", methods=["POST"])
 def food_history():
     """

@@ -1,5 +1,5 @@
 import { Card } from './ui/card';
-import { Clock, MapPin, Globe } from 'lucide-react';
+import { Clock, MapPin, Globe, Sparkles } from 'lucide-react';
 import { AnalysisResult } from './FoodUploader';
 import { ExtractedColors } from '../utils/colorExtractor';
 
@@ -581,10 +581,13 @@ export function FoodHistory({ analysisResult, themeColors }: FoodHistoryProps) {
     light: '#e0e7ff',
   };
 
-  // Get dish-specific history or use general history
+  // Get dish-specific history or use general history (fallback)
   const historyItems = analysisResult?.dishName && dishSpecificHistory[analysisResult.dishName]
     ? dishSpecificHistory[analysisResult.dishName]
     : generalHistory;
+
+  // Use API data if available, otherwise use fallback timeline
+  const hasApiHistory = analysisResult?.foodHistory;
 
   return (
     <div className="space-y-8">
@@ -601,7 +604,7 @@ export function FoodHistory({ analysisResult, themeColors }: FoodHistoryProps) {
         <div className="flex items-center justify-center gap-2">
           <Globe className="w-8 h-8" style={{ color: colors.primary }} />
           <h2 style={{ color: colors.primary }}>
-            {analysisResult?.dishName ? `${analysisResult.dishName} Time Travel` : 'Culinary Time Travel'}
+            {analysisResult?.dishName ? `${analysisResult.dishName} History & Culture` : 'Culinary Time Travel'}
           </h2>
         </div>
         <p className="max-w-2xl mx-auto" style={{ color: `${colors.primary}dd` }}>
@@ -611,6 +614,47 @@ export function FoodHistory({ analysisResult, themeColors }: FoodHistoryProps) {
           }
         </p>
       </div>
+
+      {/* Display API food history data when available */}
+      {hasApiHistory && (
+        <div className="space-y-6">
+          {/* Food History Section */}
+          <Card className="p-6 border-2 hover:shadow-lg transition-all" style={{ borderColor: `${colors.primary}60` }}>
+            <h3 className="mb-4 flex items-center gap-2" style={{ color: colors.primary }}>
+              <Clock className="w-6 h-6" />
+              Historical Origins
+            </h3>
+            <p className="leading-relaxed whitespace-pre-line" style={{ color: `${colors.primary}dd` }}>
+              {analysisResult.foodHistory?.food_history}
+            </p>
+          </Card>
+
+          {/* Modern Culture Section */}
+          <Card className="p-6 border-2 hover:shadow-lg transition-all" style={{ borderColor: `${colors.secondary}60` }}>
+            <h3 className="mb-4 flex items-center gap-2" style={{ color: colors.secondary }}>
+              <Globe className="w-6 h-6" />
+              Modern Significance
+            </h3>
+            <p className="leading-relaxed whitespace-pre-line" style={{ color: `${colors.secondary}dd` }}>
+              {analysisResult.foodHistory?.modern_culture}
+            </p>
+          </Card>
+
+          {/* Fun Facts Section */}
+          <Card className="p-6 border-2 hover:shadow-lg transition-all" style={{ borderColor: `${colors.accent}60` }}>
+            <h3 className="mb-4 flex items-center gap-2" style={{ color: colors.accent }}>
+              <Sparkles className="w-6 h-6" />
+              Fun Facts
+            </h3>
+            <div className="leading-relaxed whitespace-pre-line" style={{ color: `${colors.accent}dd` }}>
+              {analysisResult.foodHistory?.fun_facts}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Fallback: Display timeline if no API data */}
+      {!hasApiHistory && (
 
       <div className="relative">
         {/* Timeline line */}
@@ -678,6 +722,8 @@ export function FoodHistory({ analysisResult, themeColors }: FoodHistoryProps) {
           ))}
         </div>
       </div>
+      )}
+
     </div>
   );
 }

@@ -367,7 +367,10 @@ export function FunFacts({ analysisResult, themeColors }: FunFactsProps) {
     light: '#e0e7ff',
   };
 
-  // Get dish-specific facts or use general facts
+  // Check if we have API fun facts data
+  const hasApiFunFacts = analysisResult?.foodHistory?.fun_facts;
+  
+  // Get dish-specific facts or use general facts (fallback)
   const facts = analysisResult?.dishName && dishSpecificFacts[analysisResult.dishName] 
     ? dishSpecificFacts[analysisResult.dishName] 
     : generalFacts;
@@ -377,9 +380,12 @@ export function FunFacts({ analysisResult, themeColors }: FunFactsProps) {
   };
 
   useEffect(() => {
-    const interval = setInterval(nextFact, 8000);
-    return () => clearInterval(interval);
-  }, [facts.length]);
+    // Only auto-cycle if we're using hardcoded facts, not API data
+    if (!hasApiFunFacts) {
+      const interval = setInterval(nextFact, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [facts.length, hasApiFunFacts]);
 
   // Reset to first fact when dish changes
   useEffect(() => {
@@ -436,41 +442,73 @@ export function FunFacts({ analysisResult, themeColors }: FunFactsProps) {
         </div>
       )}
 
-      <div className="space-y-6">
-        <div className="text-8xl text-center transform hover:scale-110 transition-transform" style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' }}>
-          {fact.emoji}
-        </div>
-        <div className="flex justify-center">
+      {/* Display API fun facts if available */}
+      {hasApiFunFacts ? (
+        <div className="space-y-6">
+          <div className="text-8xl text-center transform hover:scale-110 transition-transform" style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' }}>
+            ✨
+          </div>
+          <div className="flex justify-center mb-4">
+            <div 
+              className="px-4 py-2 rounded-full text-white"
+              style={{
+                background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+              }}
+            >
+              Fun Facts
+            </div>
+          </div>
           <div 
-            className="px-4 py-2 rounded-full text-white"
-            style={{
-              background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+            className="leading-relaxed text-center text-lg whitespace-pre-line p-6 rounded-2xl"
+            style={{ 
+              color: colors.primary,
+              background: `${colors.light}40`,
+              border: `2px solid ${colors.primary}30`,
             }}
           >
-            {fact.category}
+            {analysisResult.foodHistory?.fun_facts}
           </div>
         </div>
-        <p className="leading-relaxed text-center text-lg" style={{ color: colors.primary }}>
-          {fact.fact}
-        </p>
-      </div>
+      ) : (
+        <>
+          {/* Display cycling hardcoded facts as fallback */}
+          <div className="space-y-6">
+            <div className="text-8xl text-center transform hover:scale-110 transition-transform" style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' }}>
+              {fact.emoji}
+            </div>
+            <div className="flex justify-center">
+              <div 
+                className="px-4 py-2 rounded-full text-white"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+                }}
+              >
+                {fact.category}
+              </div>
+            </div>
+            <p className="leading-relaxed text-center text-lg" style={{ color: colors.primary }}>
+              {fact.fact}
+            </p>
+          </div>
 
-      <div className="flex gap-2 mt-8 justify-center">
-        {facts.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentFact(index)}
-            className={`h-2 rounded-full transition-all hover:opacity-80`}
-            style={{
-              background: index === currentFact 
-                ? `linear-gradient(to right, ${colors.primary}, ${colors.secondary})` 
-                : `${colors.primary}40`,
-              width: index === currentFact ? '32px' : '8px',
-            }}
-            aria-label={`Go to fact ${index + 1}`}
-          />
-        ))}
-      </div>
+          <div className="flex gap-2 mt-8 justify-center">
+            {facts.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentFact(index)}
+                className={`h-2 rounded-full transition-all hover:opacity-80`}
+                style={{
+                  background: index === currentFact 
+                    ? `linear-gradient(to right, ${colors.primary}, ${colors.secondary})` 
+                    : `${colors.primary}40`,
+                  width: index === currentFact ? '32px' : '8px',
+                }}
+                aria-label={`Go to fact ${index + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </Card>
   );
 }
