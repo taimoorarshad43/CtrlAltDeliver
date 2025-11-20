@@ -38,7 +38,7 @@ Now, provide the final structured output with your analysis.
 
 def get_food_history(
     food_name: str,
-    model: str = 'qwen3:8b',
+    model: str = 'llama3.2:3b',
     verbose: bool = False
 ) -> Dict[str, str]:
     """
@@ -121,10 +121,8 @@ def get_food_history(
 # Example usage and testing
 if __name__ == "__main__":
     food_name = 'Chicken Chowmein'
-    # model_name = 'qwen3:8b'
     model_name = 'llama3.2:3b'
-    # model_name = 'phi3:mini'
-    # model_name = 'qwen2.5:3b'
+
     
     try:
         result = get_food_history(food_name, model=model_name, verbose=True)
