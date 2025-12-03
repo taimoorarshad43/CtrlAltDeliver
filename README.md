@@ -1,4 +1,4 @@
-# CtrlAltDeliver - Food Ingredient Analyzer
+# CtrlAltDeliver - Dishcovery
 
 A web application that uses Mistral AI's Pixtral model to analyze food images and identify ingredients. Upload your own food photos or analyze random food images from API services.
 
