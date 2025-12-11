@@ -15,10 +15,11 @@ headers = {
 }
 
 payload = {
-    "prompt": "A peaceful acoustic guitar melody with soft vocals, folk style",
+    "prompt": "A soft and soothing melody with piano and some cello",
     "customMode": False,
     "instrumental": False,
     "model": "V3_5",
+    "callBackUrl": "https://dishcovery-g8j1.onrender.com/generate-music-callback",
 }
 
 response = requests.post(url, json=payload, headers=headers)

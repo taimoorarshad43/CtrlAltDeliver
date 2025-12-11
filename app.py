@@ -2,7 +2,7 @@ import base64
 import os
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
@@ -237,6 +237,42 @@ def food_history():
         return jsonify({"error": f"Parsing error: {exc}"}), 500
     except Exception as exc:
         return jsonify({"error": f"Error getting food history: {exc}"}), 500
+
+
+# Serve static files from React build
+@app.route("/<path:path>")
+def serve_react_app(path):
+    """Serve static files and React app for client-side routing."""
+    # Don't interfere with API routes
+    if path.startswith("api/"):
+        return jsonify({"error": "Not found"}), 404
+    
+    # Get the path to the frontend build directory
+    frontend_build_path = os.path.join(os.path.dirname(__file__), "frontend", "build")
+    
+    # If the path exists as a file, serve it
+    file_path = os.path.join(frontend_build_path, path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(frontend_build_path, path)
+    
+    # Otherwise, serve index.html (for React Router)
+    index_path = os.path.join(frontend_build_path, "index.html")
+    if os.path.exists(index_path):
+        return send_file(index_path)
+    
+    return jsonify({"error": "Frontend build not found. Please run 'npm run build' in the frontend directory."}), 404
+
+
+@app.route("/")
+def serve_react_index():
+    """Serve the React app's index.html for the root route."""
+    frontend_build_path = os.path.join(os.path.dirname(__file__), "frontend", "build")
+    index_path = os.path.join(frontend_build_path, "index.html")
+    
+    if os.path.exists(index_path):
+        return send_file(index_path)
+    
+    return jsonify({"error": "Frontend build not found. Please run 'npm run build' in the frontend directory."}), 404
 
 
 if __name__ == "__main__":
