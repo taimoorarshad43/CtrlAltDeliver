@@ -4,8 +4,7 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { extractColorsFromImage, ExtractedColors } from '../utils/colorExtractor';
 import { foodDatabase, getRandomDish } from '../utils/foodDatabase';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000';
+import { API_BASE_URL } from '../config';
 
 interface FoodUploaderProps {
   onImageAnalyzed: (result: AnalysisResult) => void;
